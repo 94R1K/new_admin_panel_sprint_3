@@ -7,6 +7,7 @@ from elasticsearch.helpers import BulkIndexError, bulk
 from backoff.decorator import backoff
 from config.settings import settings
 from elasticsearch import Elasticsearch
+from logger import logger
 
 
 @dataclass
@@ -21,14 +22,18 @@ class ElasticsearchLoader:
         ),
     )
     def load(self, documents: list[dict]) -> None:
-	    if not documents:
-		    return
-	    
-	    try:
-		    bulk(
-			    self.client,
-			    documents,
-		    )
-	    except BulkIndexError as exc:
-		    print(exc.errors[:3])
-		    raise
+        if not documents:
+            return
+
+        try:
+            bulk(
+                self.client,
+                documents,
+            )
+        except BulkIndexError as exc:
+            logger.exception(
+                "Не удалось загрузить %d документов. Первые ошибки: %s",
+                len(exc.errors),
+                exc.errors[:3],
+            )
+            raise

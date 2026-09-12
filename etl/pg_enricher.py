@@ -26,14 +26,14 @@ class PostgresEnricher:
 		    return []
     
 	    query = SQL("""
-	                SELECT
-	                    id,
-	                    title,
-	                    description,
-	                    rating AS imdb_rating
-	                FROM content.film_work
-	                WHERE id IN ({film_work_ids});
-	                """).format(
+            SELECT
+                id,
+                title,
+                description,
+                rating AS imdb_rating
+            FROM content.film_work
+            WHERE id IN ({film_work_ids});
+        """).format(
 		    film_work_ids=SQL(", ").join(
 			    Literal(film_work_id)
 			    for film_work_id in film_work_ids

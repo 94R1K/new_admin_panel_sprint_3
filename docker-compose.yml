@@ -1,0 +1,32 @@
+services:
+  etl:
+    build:
+      context: .
+      dockerfile: ./etl/Dockerfile
+    env_file:
+      - ./etl/.env
+    depends_on:
+      - theatre-db
+      - elasticsearch
+
+  theatre-db:
+    image: postgres:16
+    env_file:
+      - ./etl/.env
+    volumes:
+      - theatre_data:/var/lib/postgresql/data
+      - ./database_dump.sql:/docker-entrypoint-initdb.d/init.sql
+
+  elasticsearch:
+    build:
+      context: ./elasticsearch
+    container_name: elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+volumes:
+  theatre_data:
+  elasticsearch_data:

@@ -52,8 +52,11 @@ class ETLState:
     def set_checkpoint(
         self,
         key: str,
-        checkpoint: Checkpoint,
+        checkpoint: Checkpoint | None,
     ) -> None:
+        if checkpoint is None:
+            return
+    
         self.data[key] = {
             "modified": checkpoint.modified.isoformat(),
             "id": str(checkpoint.id) if checkpoint.id else None,

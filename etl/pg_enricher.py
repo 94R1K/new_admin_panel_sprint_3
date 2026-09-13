@@ -6,26 +6,26 @@ from psycopg.sql import SQL, Literal
 
 from backoff.decorator import backoff
 from config.settings import settings
+from database.postgres.client import PostgresClient
 
 
 @dataclass
 class PostgresEnricher:
-    cursor: psycopg.ClientCursor
+    postgres: PostgresClient
 
     @backoff(
-	    start_sleep_time=settings.backoff_seconds,
-        exceptions=(
-            psycopg.OperationalError,
-        )
+        start_sleep_time=settings.backoff_seconds,
+        exceptions=(psycopg.OperationalError,),
+        reconnect=lambda enricher: enricher.postgres.reconnect(),
     )
     def get_film_works(
-	    self,
-	    film_work_ids: set[UUID],
+        self,
+        film_work_ids: set[UUID],
     ) -> list[dict]:
-	    if not film_work_ids:
-		    return []
-    
-	    query = SQL("""
+        if not film_work_ids:
+            return []
+
+        query = SQL("""
             SELECT
                 id,
                 title,
@@ -34,19 +34,17 @@ class PostgresEnricher:
             FROM content.film_work
             WHERE id IN ({film_work_ids});
         """).format(
-		    film_work_ids=SQL(", ").join(
-			    Literal(film_work_id)
-			    for film_work_id in film_work_ids
-		    ),
-	    )
-	    
-	    return self.cursor.execute(query).fetchall()
+            film_work_ids=SQL(", ").join(
+                Literal(film_work_id) for film_work_id in film_work_ids
+            ),
+        )
+
+        return self.postgres.cursor.execute(query).fetchall()
 
     @backoff(
-	    start_sleep_time=settings.backoff_seconds,
-        exceptions=(
-            psycopg.OperationalError,
-        )
+        start_sleep_time=settings.backoff_seconds,
+        exceptions=(psycopg.OperationalError,),
+        reconnect=lambda enricher: enricher.postgres.reconnect(),
     )
     def get_persons(
         self,
@@ -68,18 +66,16 @@ class PostgresEnricher:
             WHERE pfw.film_work_id IN ({film_work_ids});
         """).format(
             film_work_ids=SQL(", ").join(
-                Literal(film_work_id)
-                for film_work_id in film_work_ids
+                Literal(film_work_id) for film_work_id in film_work_ids
             ),
         )
 
-        return self.cursor.execute(query).fetchall()
+        return self.postgres.cursor.execute(query).fetchall()
 
     @backoff(
-	    start_sleep_time=settings.backoff_seconds,
-        exceptions=(
-            psycopg.OperationalError,
-        )
+        start_sleep_time=settings.backoff_seconds,
+        exceptions=(psycopg.OperationalError,),
+        reconnect=lambda enricher: enricher.postgres.reconnect(),
     )
     def get_genres(
         self,
@@ -100,9 +96,8 @@ class PostgresEnricher:
             WHERE gfw.film_work_id IN ({film_work_ids});
         """).format(
             film_work_ids=SQL(", ").join(
-                Literal(film_work_id)
-                for film_work_id in film_work_ids
+                Literal(film_work_id) for film_work_id in film_work_ids
             ),
         )
 
-        return self.cursor.execute(query).fetchall()
+        return self.postgres.cursor.execute(query).fetchall()

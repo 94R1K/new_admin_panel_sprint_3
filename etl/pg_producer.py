@@ -7,6 +7,7 @@ from psycopg.sql import SQL, Literal
 
 from backoff.decorator import backoff
 from config.settings import settings
+from database.postgres.client import PostgresClient
 from state.state import Checkpoint
 
 
@@ -20,11 +21,12 @@ class ChangedFilmWorks:
 
 @dataclass
 class PostgresProducer:
-    cursor: psycopg.ClientCursor
+    postgres: PostgresClient
 
     @backoff(
-	    start_sleep_time=settings.backoff_seconds,
-	    exceptions=(psycopg.OperationalError,)
+        start_sleep_time=settings.backoff_seconds,
+        exceptions=(psycopg.OperationalError,),
+        reconnect=lambda producer: producer.postgres.reconnect(),
     )
     def extract(
         self,
@@ -97,7 +99,7 @@ class PostgresProducer:
                 batch_size=Literal(settings.batch_size),
             )
 
-        rows = self.cursor.execute(query).fetchall()
+        rows = self.postgres.cursor.execute(query).fetchall()
 
         if not rows:
             return [], checkpoint
@@ -151,7 +153,7 @@ class PostgresProducer:
                 batch_size=Literal(settings.batch_size),
             )
 
-        rows = self.cursor.execute(query).fetchall()
+        rows = self.postgres.cursor.execute(query).fetchall()
 
         if not rows:
             return [], checkpoint
@@ -205,7 +207,7 @@ class PostgresProducer:
                 batch_size=Literal(settings.batch_size),
             )
 
-        rows = self.cursor.execute(query).fetchall()
+        rows = self.postgres.cursor.execute(query).fetchall()
 
         if not rows:
             return [], checkpoint
@@ -236,7 +238,7 @@ class PostgresProducer:
             person_ids=SQL(", ").join(Literal(person_id) for person_id in person_ids),
         )
 
-        rows = self.cursor.execute(query).fetchall()
+        rows = self.postgres.cursor.execute(query).fetchall()
 
         return [row["film_work_id"] for row in rows]
 
@@ -256,6 +258,6 @@ class PostgresProducer:
             genre_ids=SQL(", ").join(Literal(genre_id) for genre_id in genre_ids),
         )
 
-        rows = self.cursor.execute(query).fetchall()
+        rows = self.postgres.cursor.execute(query).fetchall()
 
         return [row["film_work_id"] for row in rows]

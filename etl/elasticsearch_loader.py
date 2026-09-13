@@ -6,13 +6,13 @@ from elasticsearch.helpers import BulkIndexError, bulk
 
 from backoff.decorator import backoff
 from config.settings import settings
-from elasticsearch import Elasticsearch
+from database.elasticsearch.client import ElasticsearchClient
 from logger import logger
 
 
 @dataclass
 class ElasticsearchLoader:
-    client: Elasticsearch
+    elasticsearch: ElasticsearchClient
 
     @backoff(
         start_sleep_time=settings.backoff_seconds,
@@ -20,6 +20,7 @@ class ElasticsearchLoader:
             ElasticConnectionError,
             ElasticConnectionTimeout,
         ),
+        reconnect=lambda loader: loader.elasticsearch.reconnect(),
     )
     def load(self, documents: list[dict]) -> None:
         if not documents:
@@ -27,7 +28,7 @@ class ElasticsearchLoader:
 
         try:
             bulk(
-                self.client,
+                self.elasticsearch.client,
                 documents,
             )
         except BulkIndexError as exc:

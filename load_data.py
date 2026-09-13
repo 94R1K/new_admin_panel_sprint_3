@@ -1,8 +1,7 @@
-import psycopg
-from psycopg.rows import dict_row
+from contextlib import closing
 
-from config.settings import settings
-from elasticsearch import Elasticsearch
+from database.elasticsearch.client import ElasticsearchClient
+from database.postgres.client import PostgresClient
 from etl.elasticsearch_loader import ElasticsearchLoader
 from etl.film_work_transformer import FilmWorkTransformer
 from etl.main import ETLPipeline
@@ -14,36 +13,19 @@ from state.state import ETLState, JsonFileStorage
 
 
 def main() -> None:
-    postgres_dsl = {
-        "dbname": settings.postgres_db,
-        "user": settings.postgres_user,
-        "password": settings.postgres_password,
-        "host": settings.postgres_host,
-        "port": settings.postgres_port,
-    }
-
-    elasticsearch_dsl = {
-        "hosts": [settings.elasticsearch_host],
-    }
-
     storage = JsonFileStorage("state.json")
     state = ETLState(storage)
 
     with (
-        psycopg.connect(
-            **postgres_dsl,
-            row_factory=dict_row,
-            cursor_factory=psycopg.ClientCursor,
-        ) as pg_conn,
-        pg_conn.cursor() as pg_cursor,
-        Elasticsearch(**elasticsearch_dsl) as es_client,
+        closing(PostgresClient.create()) as postgres,
+        closing(ElasticsearchClient.create()) as elasticsearch,
     ):
         producer = PostgresProducer(
-            cursor=pg_cursor,
+            postgres=postgres,
         )
 
         enricher = PostgresEnricher(
-            cursor=pg_cursor,
+            postgres=postgres,
         )
 
         merger = FilmWorkMerger()
@@ -51,7 +33,7 @@ def main() -> None:
         transformer = FilmWorkTransformer()
 
         loader = ElasticsearchLoader(
-            client=es_client,
+            elasticsearch=elasticsearch,
         )
 
         pipeline = ETLPipeline(
